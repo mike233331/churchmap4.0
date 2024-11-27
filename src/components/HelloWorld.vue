@@ -1,20 +1,7 @@
 <template>
   <div class="todo-app">
-    <form @submit.prevent="addTodo" class="todo-form">
-      <div class="column-right">
-        <input v-model="title" required placeholder="Добавьте название" class="todo-input" :minlength="3" :maxlength="100">
-        <input v-model="country" required placeholder="Добавьте страну" class="todo-input" :minlength="3" :maxlength="50">
-        <input v-model="architect" required placeholder="Добавьте имя архитектора" class="todo-input" :minlength="3" :maxlength="50">
-        <input v-model="city" required placeholder="Добавьте город" class="todo-input" :minlength="3" :maxlength="50">
-      </div>
-
-      <div class="column-left">
-        <input v-model="built" required placeholder="Добавьте дату строительства" class="todo-input" :minlength="4" :maxlength="4">
-        <input v-model="religion" required placeholder="Добавьте религию" class="todo-input" :minlength="3" :maxlength="50">
-        <input v-model="coordinates" required placeholder="Добавьте координаты" class="todo-input" :minlength="5" :maxlength="50">
-        <button class="todo-button">Добавить</button>
-      </div>
-    </form>
+    <!-- Кнопка для перехода на страницу добавления задачи -->
+    <button @click="goToAddTodoPage" class="add-todo-button">Добавить задачу</button>
 
     <ul class="todo-list">
       <li v-for="todo in todos" :key="todo.id" class="todo-item">
@@ -41,19 +28,11 @@
   </div>
 </template>
 
-
 <script setup>
 import axios from 'axios'
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 
-const title = ref('')
-const country = ref('')
-const architect = ref('')
-const city = ref('')
-const built = ref('')
-const religion = ref('')
-const coordinates = ref('')
 const todos = ref([])
 const editingTodo = ref(null)
 const editedText = ref('')
@@ -71,24 +50,6 @@ async function fetchTodos() {
     todos.value = response.data
   } catch (error) {
     console.error('Ошибка при получении задач:', error)
-  }
-}
-
-async function addTodo() {
-  try {
-    const response = await axios.post('http://127.0.0.1:5000/api/todos', {
-      text: title.value,
-      country: country.value,
-      city: city.value,
-      built: built.value,
-      coordinates: coordinates.value,
-      architect: architect.value,
-      relig: religion.value
-    })
-    todos.value.push(response.data)
-    title.value = country.value = architect.value = city.value = built.value = religion.value = coordinates.value = ''
-  } catch (error) {
-    console.error('Ошибка при добавлении задачи:', error)
   }
 }
 
@@ -152,63 +113,41 @@ function viewTodo(todoId) {
   router.push(`/todo/${todoId}`)
 }
 
+// Переход на страницу добавления задачи
+function goToAddTodoPage() {
+  router.push('/addchurch')
+}
+
+// Загрузка задач
 fetchTodos()
 </script>
 
 <style scoped>
-
-
-/* Оформление для формы */
-.todo-form {
-  background-color: #ffffff;
-  border-radius: 10px;
-  padding: 20px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-  max-width: 800px;
-  margin: 20px auto;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 20px;
-}
-
-/* Стили для полей ввода */
-.todo-input {
-  width: 100%;
-  padding: 8px;
-  margin: 5px 0;
-  border: 1px solid #b2dfdb;
-  border-radius: 5px;
-  background-color: #f0f8ff;
-  font-size: 14px;
-}
-
-/* Стили для кнопки добавить */
-.todo-button {
-  width: 105%; /* Кнопка будет такой же ширины, как и поля ввода */
-  padding: 7.80px; /* Увеличен отступ для высоты */
-  background-color: #00bcd4; /* Светло-синий */
+/* Кнопка для добавления задачи */
+.add-todo-button {
+  padding: 10px 20px;
+  background-color: #4caf50;
   color: white;
   border: none;
   border-radius: 5px;
-  font-size: 16px; /* Увеличен размер текста */
+  font-size: 16px;
   cursor: pointer;
-  margin-top: 5px; /* Увеличен отступ сверху */
+  margin-bottom: 20px;
 }
 
-.todo-button:hover {
-  background-color: #0097a7; /* Темный светло-синий при наведении */
+.add-todo-button:hover {
+  background-color: #388e3c;
 }
 
-/* Размещение полей ввода */
-.column-left,
-.column-right {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  max-width: 45%;
+.todo-list {
+  background-color: white;
+  opacity: 0.85; /* 80% непрозрачности */
+  border-radius: 10px;
+  list-style-type: none;
+  padding: 0;
+  margin: 20px auto;
+  max-width: 600px;
 }
-
-
 
 .todo-item {
   background-color: #ffffff;
@@ -221,14 +160,12 @@ fetchTodos()
   align-items: center;
 }
 
-/* Оформление для текста задачи */
 .todo-text {
   font-size: 18px;
   color: #00796b;
   flex-grow: 1;
 }
 
-/* Оформление для полей редактирования */
 .todo-input-edit {
   width: 100%;
   padding: 8px;
@@ -239,7 +176,6 @@ fetchTodos()
   font-size: 14px;
 }
 
-/* Стили для кнопок редактирования */
 .edit-button,
 .save-button,
 .cancel-button,
@@ -251,17 +187,15 @@ fetchTodos()
   cursor: pointer;
 }
 
-/* Цвет кнопки "Редактировать" */
 .edit-button {
-  background-color: #0097a7; /* Темно-синий */
+  background-color: #0097a7;
   color: white;
 }
 
 .edit-button:hover {
-  background-color: #146670; /* Более темный синий при наведении */
+  background-color: #146670;
 }
 
-/* Цвет кнопки "Сохранить" */
 .save-button {
   background-color: #4caf50;
   color: white;
@@ -271,7 +205,6 @@ fetchTodos()
   background-color: #388e3c;
 }
 
-/* Цвет кнопки "Отменить" */
 .cancel-button {
   background-color: #fbc02d;
   color: white;
@@ -281,49 +214,21 @@ fetchTodos()
   background-color: #f9a825;
 }
 
-/* Цвет кнопки "Удалить" */
 .delete-button {
-  background-color: #d32f2f; /* Темно-красный */
+  background-color: #d32f2f;
   color: white;
 }
 
 .delete-button:hover {
-  background-color: #ff0000; /* Более темный красный при наведении */
+  background-color: #ff0000;
 }
 
-/* Размещение кнопок в столбик */
 .button-group {
   display: flex;
-  flex-direction: column; /* Размещение кнопок в столбик */
-  gap: 10px; /* Отступы между кнопками */
+  flex-direction: column;
+  gap: 10px;
   justify-content: flex-end;
-  width: 100%; /* Ширина 100% для правильного выравнивания */
-  align-items: flex-end; /* Выравнивание по правому краю */
+  width: 100%;
+  align-items: flex-end;
 }
-
-.todo-form {
-  background-color: rgba(255, 255, 255, 0.6); /* Белый цвет с 80% непрозрачностью */
-  border-radius: 10px;
-  padding: 20px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-  max-width: 800px;
-  margin: 20px auto;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 20px;
-}
-
-
-.todo-list {
-  background-color: white;
-  opacity: 0.6; /* 80% непрозрачности */
-  border-radius: 10px;
-  list-style-type: none;
-  padding: 0;
-  margin: 20px auto;
-  max-width: 600px;
-
-}
-
-
 </style>

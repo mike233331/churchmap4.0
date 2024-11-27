@@ -1,29 +1,28 @@
 from flask import Flask, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
+import os
+from werkzeug.utils import secure_filename
 
-# app = Flask(__name__)
-# CORS(app, resources={r"/api/*": {"origins": "http://localhost:8080"}})
-# app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///todo.db'
-# db = SQLAlchemy(app)
+
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///todo.db'  # Укажите вашу строку подключения к базе данных
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False  # Отключает предупреждения SQLAlchemy
+app.config['UPLOAD_FOLDER'] = os.path.join(os.path.dirname(__file__), 'uploads')
 db = SQLAlchemy(app)
 CORS(app)  # Разрешаем CORS для всех маршрутов
-
-
-
 
 class Todo(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     text = db.Column(db.String(100), nullable=False)
-    country = db.Column(db.String(20), nullable=False)
-    city = db.Column(db.String(20), nullable=False)
-    built = db.Column(db.String(20), nullable=False)
-    coordinates = db.Column(db.String(40), nullable=False)
-    architect = db.Column(db.String(60), nullable=False)
-    relig = db.Column(db.String(100), nullable=False)
+    country = db.Column(db.String(50), nullable=False)
+    city = db.Column(db.String(50), nullable=False)
+    built = db.Column(db.String(4), nullable=False)
+    coordinates = db.Column(db.String(50), nullable=False)
+    architect = db.Column(db.String(50), nullable=False)
+    relig = db.Column(db.String(50), nullable=False)
+    photos = db.Column(db.Text)  # Поле для хранения путей к фото (разделённых запятыми)
+
 
 with app.app_context():
     db.create_all()
@@ -64,36 +63,44 @@ def get_todos():
         } for todo in todos
     ])
 
-
-
-
 # Маршрут для добавления новой задачи
 @app.route('/api/todos', methods=['POST'])
 def add_todo():
-    data = request.get_json()
+    data = request.form
+    files = request.files.getlist('photos')
+    photo_paths = []
+
+    # Обработка файлов
+    if files:
+        for file in files:
+            if file and allowed_file(file.filename):
+                filename = secure_filename(file.filename)
+                filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+                file.save(filepath)
+                photo_paths.append(filepath)
+
+    # Добавление задачи в базу данных
     new_todo = Todo(
-        text=data['text'],
-        country=data['country'],
-        city=data['city'],
-        built=data['built'],
-        coordinates=data['coordinates'],
-        architect=data['architect'],
-        relig=data['relig']
+        text=data.get('text'),
+        country=data.get('country'),
+        city=data.get('city'),
+        built=data.get('built'),
+        coordinates=data.get('coordinates'),
+        architect=data.get('architect'),
+        relig=data.get('relig'),
+        photos=','.join(photo_paths)  # Сохраняем пути к фото
     )
     db.session.add(new_todo)
     db.session.commit()
-    return jsonify({
-        'id': new_todo.id,
-        'text': new_todo.text,
-        'country': new_todo.country,
-        'city': new_todo.city,
-        'built': new_todo.built,
-        'coordinates': new_todo.coordinates,
-        'architect': new_todo.architect,
-        'relig': new_todo.relig
-    })
 
+    return jsonify({'message': 'Задача добавлена', 'id': new_todo.id}), 201
 
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in {'png', 'jpg', 'jpeg', 'gif'}
+
+if __name__ == '__main__':
+    os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)  # Создаем папку, если её нет
+    app.run(debug=True)
 
 # Маршрут для обновления задачи
 @app.route('/api/todos/<int:id>', methods=['PUT'])
@@ -121,6 +128,12 @@ def delete_todo(id):
         db.session.commit()
         return jsonify({'message': 'Task deleted successfully'})
     return jsonify({'message': 'Task not found'}), 404
+
+
+# Главная страница будет отдавать index.html
+@app.route('/')
+def index():
+    return app.send_static_file('index.html')
 
 if __name__ == '__main__':
     app.run(debug=True)

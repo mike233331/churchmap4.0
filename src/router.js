@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import TodoView from './components/TodoView.vue'; // Убедитесь, что путь правильный
+import AddChurch from "@/components/AddChurch.vue";
 
 const routes = [
     {
@@ -7,6 +8,11 @@ const routes = [
         name: 'TodoView',
         component: TodoView,
     },
+    {
+        path: '/addchurch',
+        name: 'AddChurch',
+        component: AddChurch
+    }
     // Другие маршруты, если они есть
 ];
 
