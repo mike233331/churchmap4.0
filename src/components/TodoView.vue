@@ -15,12 +15,23 @@
         <p><strong>Architect:</strong> {{ todo.architect }}</p>
         <p><strong>Religion:</strong> {{ todo.relig }}</p>
       </div>
+
+      <!-- Отображение фотографий -->
+      <div class="todo-photos" v-if="todo.photos && todo.photos.length">
+        <h3>Фотографии</h3>
+        <div class="photos-gallery">
+          <img v-for="photo in todo.photos" :key="photo.filename" :src="'http://127.0.0.1:5000/' + photo.filepath" :alt="photo.filename" class="todo-photo" />
+        </div>
+      </div>
     </div>
+
     <div v-else class="todo-not-found">
       <p>Todo not found.</p>
     </div>
   </div>
 </template>
+
+
 
 <script>
 import axios from "axios";
@@ -44,6 +55,8 @@ export default {
   },
 };
 </script>
+
+
 
 <style scoped>
 /* Стили для кнопки "Назад" */
@@ -104,5 +117,25 @@ export default {
   font-size: 1.5rem;
   color: #e74c3c;
   margin-top: 50px;
+}
+
+/* Стили для блока с фотографиями */
+.todo-photos {
+  margin-top: 30px;
+}
+
+.photos-gallery {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+}
+
+.todo-photo {
+  width: 100%;
+  max-width: 250px;
+  height: auto;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
 }
 </style>
