@@ -75,7 +75,7 @@ def get_todo_by_id(id):
 def add_todo():
     data = request.form
     files = request.files.getlist('photos')
-    photo_paths = []
+    photo_filenames = []  # Сохраняем только имена файлов
 
     if files:
         for file in files:
@@ -83,7 +83,7 @@ def add_todo():
                 filename = secure_filename(file.filename)
                 filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
                 file.save(filepath)
-                photo_paths.append(filepath)
+                photo_filenames.append(filename)  # Сохраняем имя файла
 
     new_todo = Todo(
         text=data.get('text'),
@@ -93,7 +93,7 @@ def add_todo():
         coordinates=data.get('coordinates'),
         architect=data.get('architect'),
         relig=data.get('relig'),
-        photos=','.join(photo_paths)
+        photos=','.join(photo_filenames)  # Сохраняем имена файлов через запятую
     )
     db.session.add(new_todo)
     db.session.commit()
@@ -101,13 +101,18 @@ def add_todo():
     return jsonify({'message': 'Task added successfully', 'id': new_todo.id}), 201
 
 
+
+# Маршрут для обновления задачи
 @app.route('/api/todos/<int:id>', methods=['PUT'])
 def update_todo(id):
-    data = request.get_json()
     todo = Todo.query.get(id)
     if not todo:
         return jsonify({'message': 'Task not found'}), 404
 
+    # Получаем данные из формы
+    data = request.json  # Используйте request.json для получения JSON данных
+
+    # Обновляем поля
     todo.text = data.get('text', todo.text)
     todo.country = data.get('country', todo.country)
     todo.city = data.get('city', todo.city)
@@ -116,14 +121,25 @@ def update_todo(id):
     todo.architect = data.get('architect', todo.architect)
     todo.relig = data.get('relig', todo.relig)
 
-    # Обновляем фотографии, если они переданы
-    if 'photos' in data:
-        todo.photos = ",".join(data['photos'])  # Сохраняем список фотографий как строку через запятую
+    # Обрабатываем фотографии (если они есть)
+    photo_paths = []
+    files = request.files.getlist('photos')
+    if files:
+        for file in files:
+            if allowed_file(file.filename):
+                filename = secure_filename(file.filename)
+                filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+                file.save(filepath)
+                photo_paths.append(filepath)
 
+    # Обновляем фотографии, если они были загружены
+    if photo_paths:
+        todo.photos = ",".join(photo_paths)
+
+    # Сохраняем изменения в базе данных
     db.session.commit()
 
     return jsonify({'message': 'Task updated successfully'})
-
 
 # Маршрут для удаления задачи
 @app.route('/api/todos/<int:id>', methods=['DELETE'])
@@ -135,6 +151,42 @@ def delete_todo(id):
     db.session.delete(todo)
     db.session.commit()
     return jsonify({'message': 'Task deleted successfully'})
+
+
+@app.route('/api/todos/<int:id>/photos/<filename>', methods=['DELETE'])
+def delete_photo(id, filename):
+    todo = Todo.query.get(id)
+    if not todo:
+        return jsonify({'message': 'Task not found'}), 404
+
+    # Получаем все имена файлов
+    photos = todo.photos.split(',')
+    print(f"Фотографии в базе данных для задачи {id}: {photos}")  # Логируем все фотографии
+
+    if filename in photos:
+        print(f"Удаляем фото: {filename}")  # Логируем имя файла
+
+        # Удаляем фото из списка
+        photos.remove(filename)
+        todo.photos = ",".join(photos)  # Обновляем список фотографий в базе данных
+
+        # Путь к файлу на сервере
+        photo_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        print(f"Путь к файлу для удаления: {photo_path}")  # Логируем путь к файлу на сервере
+
+        # Проверяем, существует ли файл
+        if os.path.exists(photo_path):
+            os.remove(photo_path)
+            print(f"Фото {filename} успешно удалено с диска.")  # Логируем успешное удаление
+        else:
+            print(f"Фото {filename} не найдено на диске.")  # Логируем ошибку
+
+        db.session.commit()  # Сохраняем изменения в базе данных
+        return jsonify({'message': 'Photo deleted successfully'}), 200
+    else:
+        return jsonify({'message': 'Photo not found in task'}), 404
+
+
 
 # Маршрут для загрузки файлов
 @app.route('/uploads/<filename>')
