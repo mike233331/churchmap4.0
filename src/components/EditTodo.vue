@@ -5,31 +5,45 @@
       <form @submit.prevent="saveEdit" class="edit-form">
         <div class="input-container">
           <label for="text">Текст задачи</label>
-          <input v-model="todo.text" placeholder="Текст задачи" class="todo-input-edit" id="text">
+          <input v-model="todo.text" placeholder="Текст задачи" class="todo-input-edit" id="text" />
         </div>
         <div class="input-container">
           <label for="country">Страна</label>
-          <input v-model="todo.country" placeholder="Страна" class="todo-input-edit" id="country">
+          <input v-model="todo.country" placeholder="Страна" class="todo-input-edit" id="country" />
         </div>
         <div class="input-container">
           <label for="city">Город</label>
-          <input v-model="todo.city" placeholder="Город" class="todo-input-edit" id="city">
+          <input v-model="todo.city" placeholder="Город" class="todo-input-edit" id="city" />
         </div>
         <div class="input-container">
           <label for="built">Год постройки</label>
-          <input v-model="todo.built" placeholder="Год постройки" class="todo-input-edit" id="built">
+          <input v-model="todo.built" placeholder="Год постройки" class="todo-input-edit" id="built" />
         </div>
         <div class="input-container">
           <label for="coordinates">Координаты</label>
-          <input v-model="todo.coordinates" placeholder="Координаты" class="todo-input-edit" id="coordinates">
+          <input v-model="todo.coordinates" placeholder="Координаты" class="todo-input-edit" id="coordinates" />
         </div>
         <div class="input-container">
           <label for="architect">Архитектор</label>
-          <input v-model="todo.architect" placeholder="Архитектор" class="todo-input-edit" id="architect">
+          <input v-model="todo.architect" placeholder="Архитектор" class="todo-input-edit" id="architect" />
         </div>
         <div class="input-container">
           <label for="relig">Религия</label>
-          <input v-model="todo.relig" placeholder="Религия" class="todo-input-edit" id="relig">
+          <input v-model="todo.relig" placeholder="Религия" class="todo-input-edit" id="relig" />
+        </div>
+
+        <!-- Загрузка новых фото -->
+        <div class="input-container">
+          <label for="file-upload">Добавить фото</label>
+          <input type="file" id="file-upload" multiple @change="handleFileUpload" class="todo-input-file" />
+        </div>
+
+        <!-- Предпросмотр новых фото -->
+        <div v-if="imagePreviews.length > 0" class="image-previews">
+          <div v-for="(preview, index) in imagePreviews" :key="index" class="image-preview">
+            <img :src="preview" alt="Предпросмотр изображения" class="preview-image" />
+            <button @click="removePreviewImage(index)" class="remove-image-btn">X</button>
+          </div>
         </div>
 
         <button type="submit" class="save-button">Сохранить</button>
@@ -37,27 +51,23 @@
       <button @click="cancelEdit" class="cancel-button">Отменить</button>
     </div>
 
-    <!-- Контейнер для отображения фотографий -->
+    <!-- Контейнер для отображения существующих фотографий -->
     <div class="todo-photos" v-if="todo.photos && todo.photos.length">
       <h3>Фотографии</h3>
       <div class="photos-gallery">
         <div v-for="(photo, index) in todo.photos" :key="photo.filename" class="photo-item">
           <img :src="'http://127.0.0.1:5000/' + photo.filepath" :alt="photo.filename" class="todo-photo" />
-          <!-- Кнопка для удаления фото -->
-          <button class="delete-photo" @click="deletePhoto(index)">
-            ✖
-          </button>
+          <button class="delete-photo" @click="deletePhoto(index)">✖</button>
         </div>
       </div>
     </div>
   </div>
 </template>
 
-
 <script setup>
-import { ref, onMounted } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
-import axios from 'axios'
+import { ref, onMounted } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
+import axios from 'axios';
 
 const todo = ref({
   text: '',
@@ -67,59 +77,86 @@ const todo = ref({
   coordinates: '',
   architect: '',
   relig: '',
-  photos: []  // Массив для фото
-})
-const route = useRoute()
-const router = useRouter()
+  photos: [], // Массив для существующих фото
+});
+const files = ref([]); // Новые загружаемые файлы
+const imagePreviews = ref([]); // Предпросмотры новых фото
+const route = useRoute();
+const router = useRouter();
 
 // Загружаем данные задачи при монтировании компонента
 onMounted(async () => {
-  const todoId = route.params.id
+  const todoId = route.params.id;
   try {
-    const response = await axios.get(`http://127.0.0.1:5000/todo/${todoId}`)
-    Object.assign(todo.value, response.data)
+    const response = await axios.get(`http://127.0.0.1:5000/todo/${todoId}`);
+    Object.assign(todo.value, response.data);
   } catch (error) {
-    console.error('Ошибка при загрузке задачи:', error)
+    console.error('Ошибка при загрузке задачи:', error);
   }
-})
+});
 
-// Функция для удаления фото
+// Обработка загрузки новых фото
+function handleFileUpload(event) {
+  const selectedFiles = Array.from(event.target.files);
+  files.value.push(...selectedFiles);
+  imagePreviews.value.push(...selectedFiles.map(file => URL.createObjectURL(file)));
+}
+
+// Удаление фото из предпросмотра
+function removePreviewImage(index) {
+  imagePreviews.value.splice(index, 1);
+  files.value.splice(index, 1);
+}
+
+// Удаление существующего фото
 async function deletePhoto(index) {
-  const photoFilename = todo.value.photos[index].filename;  // Получаем только имя файла
+  const photoFilename = todo.value.photos[index].filename;
   try {
     const response = await axios.delete(`http://127.0.0.1:5000/api/todos/${route.params.id}/photos/${photoFilename}`);
-    console.log('Ответ сервера на удаление:', response.data);  // Логируем ответ
-
     if (response.data.message === 'Photo deleted successfully') {
-      todo.value.photos.splice(index, 1);  // Удаляем фото из массива
+      todo.value.photos.splice(index, 1);
     }
   } catch (error) {
     console.error('Ошибка при удалении фото:', error);
   }
 }
 
-
-
-// Сохраняем изменения
+// Сохранение изменений, включая новые фото
 async function saveEdit() {
-  const todoId = route.params.id
+  console.log('Отправка данных для сохранения...');
+  const todoId = route.params.id;
+  const formData = new FormData();
+
+  // Добавляем текстовые данные
+  for (const [key, value] of Object.entries(todo.value)) {
+    if (key !== 'photos') formData.append(key, value);
+  }
+
+  // Добавляем новые фото
+  files.value.forEach(file => {
+    formData.append('photos', file);
+  });
+
   try {
-    const response = await axios.put(`http://127.0.0.1:5000/api/todos/${todoId}`, todo.value)
+    const response = await axios.put(`http://127.0.0.1:5000/api/todos/${todoId}`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
     if (response.data.message === 'Task updated successfully') {
-      router.push('/')  // Перенаправление на главную страницу после сохранения
+      console.log('Задача успешно обновлена');
+      router.push('/'); // Перенаправление после сохранения
+    } else {
+      console.error('Ошибка при сохранении задачи:', response.data);
     }
   } catch (error) {
-    console.error('Ошибка при сохранении задачи:', error)
+    console.error('Ошибка при сохранении задачи:', error);
   }
 }
 
 // Отмена редактирования
 function cancelEdit() {
-  router.push('/')  // Перенаправление на главную страницу
+  router.push('/'); // Перенаправление на главную страницу
 }
 </script>
-
-
 <style scoped>
 
 /* Стили для крестика на фото */
@@ -259,6 +296,137 @@ label {
   object-fit: contain;  /* Изображение будет сжиматься, чтобы поместиться в квадратный контейнер */
   border-radius: 10px;  /* Закругление углов фотографий */
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);  /* Легкая тень для фотографии */
+}
+
+
+/* Стили для поля загрузки файла */
+.input-container input[type="file"] {
+  display: none; /* Скрываем стандартное поле загрузки */
+}
+
+/* Стиль для кнопки загрузки фото */
+.input-container label[for="file-upload"] {
+  display: inline-block;
+  padding: 12px 20px;
+  background-color: #4caf50;
+  color: white;
+  border-radius: 50px;
+  cursor: pointer;
+  font-size: 16px;
+  text-align: center;
+  transition: background-color 0.3s;
+}
+
+.input-container label[for="file-upload"]:hover {
+  background-color: #388e3c;
+}
+
+/* Стиль для предпросмотра изображений */
+.image-previews {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.image-preview {
+  position: relative;
+  width: 100px;
+  height: 100px;
+  margin-bottom: 10px;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.preview-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 10px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.remove-image-btn {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  background-color: rgba(255, 0, 0, 0.7);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  font-size: 12px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+  opacity: 0.8;
+  transition: opacity 0.3s;
+}
+
+.remove-image-btn:hover {
+  opacity: 1;
+}
+
+/* Стили для контейнера фотографий */
+.todo-photos {
+  width: 35%;
+  margin-top: 30px;
+  padding: 15px;
+  background-color: #f9f9f9;
+  border-radius: 10px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+/* Стили для фотографий в галерее */
+.photos-gallery {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 15px;
+  justify-content: center;
+}
+
+.photo-item {
+  position: relative;
+  width: 100%;
+  max-width: 200px;
+  height: 200px;
+  margin-bottom: 10px;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.todo-photo {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  border-radius: 10px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.delete-photo {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  background-color: rgba(0, 0, 0, 0.5);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 25px;
+  height: 25px;
+  font-size: 16px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+  opacity: 0.8;
+  transition: opacity 0.3s;
+}
+
+.delete-photo:hover {
+  opacity: 1;
 }
 
 

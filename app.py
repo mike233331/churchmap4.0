@@ -109,8 +109,11 @@ def update_todo(id):
     if not todo:
         return jsonify({'message': 'Task not found'}), 404
 
-    # Получаем данные из формы
-    data = request.json  # Используйте request.json для получения JSON данных
+    # Проверяем, был ли запрос в формате JSON или обычной формы
+    if request.is_json:
+        data = request.get_json()  # Для JSON
+    else:
+        data = request.form  # Для формы
 
     # Обновляем поля
     todo.text = data.get('text', todo.text)
@@ -121,25 +124,31 @@ def update_todo(id):
     todo.architect = data.get('architect', todo.architect)
     todo.relig = data.get('relig', todo.relig)
 
-    # Обрабатываем фотографии (если они есть)
-    photo_paths = []
+    # Получаем текущие фотографии
+    existing_photos = todo.photos.split(',') if todo.photos else []
+
+    # Обрабатываем фотографии, если они есть
+    new_photos = []  # Список для новых фотографий
     files = request.files.getlist('photos')
     if files:
         for file in files:
-            if allowed_file(file.filename):
+            if file and allowed_file(file.filename):
                 filename = secure_filename(file.filename)
                 filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
                 file.save(filepath)
-                photo_paths.append(filepath)
+                new_photos.append(filename)  # Добавляем имя файла в список
 
-    # Обновляем фотографии, если они были загружены
-    if photo_paths:
-        todo.photos = ",".join(photo_paths)
+    # Объединяем старые и новые фотографии
+    all_photos = existing_photos + new_photos
+    todo.photos = ",".join(all_photos)  # Обновляем поле с фотографиями
 
     # Сохраняем изменения в базе данных
     db.session.commit()
 
     return jsonify({'message': 'Task updated successfully'})
+
+
+
 
 # Маршрут для удаления задачи
 @app.route('/api/todos/<int:id>', methods=['DELETE'])
