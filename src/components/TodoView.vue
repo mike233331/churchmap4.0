@@ -20,7 +20,13 @@
       <div class="todo-photos" v-if="todo.photos && todo.photos.length">
         <h3>Фотографии</h3>
         <div class="photos-gallery">
-          <img v-for="photo in todo.photos" :key="photo.filename" :src="'http://127.0.0.1:5000/' + photo.filepath" :alt="photo.filename" class="todo-photo" />
+          <img
+              v-for="photo in todo.photos"
+              :key="photo.filename"
+              :src="'http://127.0.0.1:5000/' + photo.filepath"
+              :alt="photo.filename"
+              class="todo-photo"
+              @click="openModal('http://127.0.0.1:5000/' + photo.filepath)" />
         </div>
       </div>
     </div>
@@ -28,9 +34,13 @@
     <div v-else class="todo-not-found">
       <p>Todo not found.</p>
     </div>
+
+    <!-- Модальное окно для отображения изображения в полном размере -->
+    <div v-if="isModalOpen" class="modal" @click.self="closeModal">
+      <img :src="modalImage" class="modal-image" />
+    </div>
   </div>
 </template>
-
 
 
 <script>
@@ -40,6 +50,8 @@ export default {
   data() {
     return {
       todo: null, // Сюда будут загружены данные todo
+      isModalOpen: false, // Статус модального окна
+      modalImage: "", // URL для отображаемого изображения в модальном окне
     };
   },
   created() {
@@ -53,9 +65,18 @@ export default {
           console.error("Error fetching todo:", error);
         });
   },
+  methods: {
+    openModal(imageSrc) {
+      this.modalImage = imageSrc; // Устанавливаем URL изображения в модальном окне
+      this.isModalOpen = true; // Открываем модальное окно
+    },
+    closeModal() {
+      this.isModalOpen = false; // Закрываем модальное окно
+      this.modalImage = ""; // Очищаем URL изображения
+    }
+  }
 };
 </script>
-
 
 
 <style scoped>
@@ -132,10 +153,33 @@ export default {
 }
 
 .todo-photo {
-  width: 100%;
-  max-width: 250px;
-  height: auto;
+  width: 300px; /* Фиксированная ширина */
+  height: 200px; /* Фиксированная высота */
+  object-fit: contain; /* Изображение будет полностью видно, сжато по необходимости */
   border-radius: 8px;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  cursor: pointer; /* Курсор меняется на указатель при наведении */
+}
+
+/* Стили для модального окна */
+.modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.7);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.modal-image {
+  max-width: 90%;
+  max-height: 90%;
+  border-radius: 10px;
+  object-fit: contain; /* Изображение не будет искажаться */
 }
 </style>
+

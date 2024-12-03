@@ -3,6 +3,7 @@
     <div class="form-container">
       <h2>Редактировать задачу</h2>
       <form @submit.prevent="saveEdit" class="edit-form">
+        <!-- Поля формы для редактирования задачи -->
         <div class="input-container">
           <label for="text">Текст задачи</label>
           <input v-model="todo.text" placeholder="Текст задачи" class="todo-input-edit" id="text" />
@@ -81,6 +82,7 @@ const todo = ref({
 });
 const files = ref([]); // Новые загружаемые файлы
 const imagePreviews = ref([]); // Предпросмотры новых фото
+const deletedPhotos = ref([]); // Массив для хранения удалённых фото
 const route = useRoute();
 const router = useRouter();
 
@@ -102,26 +104,17 @@ function handleFileUpload(event) {
   imagePreviews.value.push(...selectedFiles.map(file => URL.createObjectURL(file)));
 }
 
-// Удаление фото из предпросмотра
-function removePreviewImage(index) {
-  imagePreviews.value.splice(index, 1);
-  files.value.splice(index, 1);
+// Удаление существующего фото только с клиентской стороны
+function deletePhoto(index) {
+  // Добавляем удалённую фотографию в список
+  const deletedPhoto = todo.value.photos[index];
+  deletedPhotos.value.push(deletedPhoto);
+
+  // Удаляем фотографию из списка на клиенте
+  todo.value.photos.splice(index, 1);
 }
 
-// Удаление существующего фото
-async function deletePhoto(index) {
-  const photoFilename = todo.value.photos[index].filename;
-  try {
-    const response = await axios.delete(`http://127.0.0.1:5000/api/todos/${route.params.id}/photos/${photoFilename}`);
-    if (response.data.message === 'Photo deleted successfully') {
-      todo.value.photos.splice(index, 1);
-    }
-  } catch (error) {
-    console.error('Ошибка при удалении фото:', error);
-  }
-}
-
-// Сохранение изменений, включая новые фото
+// Сохранение изменений, включая новые фото и удалённые фото
 async function saveEdit() {
   console.log('Отправка данных для сохранения...');
   const todoId = route.params.id;
@@ -141,7 +134,11 @@ async function saveEdit() {
     const response = await axios.put(`http://127.0.0.1:5000/api/todos/${todoId}`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
+
     if (response.data.message === 'Task updated successfully') {
+      // Отправляем информацию о удалённых фотографиях
+      await deletePhotosFromDatabase(todoId);
+
       console.log('Задача успешно обновлена');
       router.push('/'); // Перенаправление после сохранения
     } else {
@@ -149,6 +146,19 @@ async function saveEdit() {
     }
   } catch (error) {
     console.error('Ошибка при сохранении задачи:', error);
+  }
+}
+
+// Отправка информации о удалённых фотографиях на сервер
+async function deletePhotosFromDatabase(todoId) {
+  try {
+    // Удаляем фотографии из базы данных
+    for (const deletedPhoto of deletedPhotos.value) {
+      await axios.delete(`http://127.0.0.1:5000/api/todos/${todoId}/photos/${deletedPhoto.filename}`);
+    }
+    deletedPhotos.value = []; // Очищаем массив удалённых фотографий
+  } catch (error) {
+    console.error('Ошибка при удалении фотографий с сервера:', error);
   }
 }
 
@@ -428,6 +438,5 @@ label {
 .delete-photo:hover {
   opacity: 1;
 }
-
 
 </style>

@@ -124,11 +124,8 @@ def update_todo(id):
     todo.architect = data.get('architect', todo.architect)
     todo.relig = data.get('relig', todo.relig)
 
-    # Получаем текущие фотографии
-    existing_photos = todo.photos.split(',') if todo.photos else []
-
     # Обрабатываем фотографии, если они есть
-    new_photos = []  # Список для новых фотографий
+    photo_filenames = []  # Список для новых фотографий
     files = request.files.getlist('photos')
     if files:
         for file in files:
@@ -136,17 +133,16 @@ def update_todo(id):
                 filename = secure_filename(file.filename)
                 filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
                 file.save(filepath)
-                new_photos.append(filename)  # Добавляем имя файла в список
+                photo_filenames.append(filename)  # Добавляем имя файла в список
 
-    # Объединяем старые и новые фотографии
-    all_photos = existing_photos + new_photos
-    todo.photos = ",".join(all_photos)  # Обновляем поле с фотографиями
+    # Если есть новые фотографии, обновляем их
+    if photo_filenames:
+        todo.photos = ",".join(photo_filenames)  # Обновляем поле с фотографиями
 
     # Сохраняем изменения в базе данных
     db.session.commit()
 
     return jsonify({'message': 'Task updated successfully'})
-
 
 
 

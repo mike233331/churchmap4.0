@@ -10,8 +10,10 @@
   "dependencies": {
     "axios": "^1.7.7",
     "core-js": "^3.8.3",
+    "cropperjs": "^1.6.2",
     "jquery": "^3.7.1",
     "vue": "^3.2.13",
+    "vue-cropperjs": "^5.0.0",
     "vue-router": "^4.4.5"
   },
   "devDependencies": {
