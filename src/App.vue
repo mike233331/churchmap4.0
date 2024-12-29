@@ -31,7 +31,7 @@ export default {
 
 <style>
 body {
-  background-image: url('/Users/misha/WebstormProjects/test_vue/my-project/src/assets/25547-zemlya-noch-prostranstvo-vselennaya-kosmos-1920x1080.jpg');
+  background-image: url('@/assets/bckg.jpg');
   background-repeat: no-repeat;
   background-size: cover;
 }

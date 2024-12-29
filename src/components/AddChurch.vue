@@ -1,74 +1,135 @@
 <template>
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
   <div class="todo-add">
     <form @submit.prevent="addTodo" class="todo-form" enctype="multipart/form-data">
       <div class="column-right">
-        <input v-model="title" required placeholder="Добавьте название" class="todo-input" :minlength="3" :maxlength="100">
-        <input v-model="country" required placeholder="Добавьте страну" class="todo-input" :minlength="3" :maxlength="50">
-        <input v-model="architect" required placeholder="Добавьте имя архитектора" class="todo-input" :minlength="3" :maxlength="50">
-        <input v-model="city" required placeholder="Добавьте город" class="todo-input" :minlength="3" :maxlength="50">
+        <q-input v-model="title" label="Добавьте название" required :minlength="3" :maxlength="100" outlined rounded class="q-mb-md" />
+        <q-input v-model="country" label="Добавьте страну" required :minlength="3" :maxlength="50" outlined rounded class="q-mb-md" />
+        <q-input v-model="architect" label="Добавьте имя архитектора" required :minlength="3" :maxlength="50" outlined rounded class="q-mb-md" />
+        <q-input v-model="city" label="Добавьте город" required :minlength="3" :maxlength="50" outlined rounded class="q-mb-md" />
       </div>
 
       <div class="column-left">
-        <input v-model="built" required placeholder="Добавьте дату строительства" class="todo-input" :minlength="4" :maxlength="4">
-        <input v-model="religion" required placeholder="Добавьте религию" class="todo-input" :minlength="3" :maxlength="50">
-        <input v-model="coordinates" required placeholder="Добавьте координаты" class="todo-input" :minlength="5" :maxlength="50">
+        <q-input v-model="built" label="Добавьте дату строительства" required :minlength="4" :maxlength="4" outlined rounded class="q-mb-md" />
 
-        <!-- Кнопка загрузки файлов -->
-        <label for="file-upload" class="todo-file-upload-label">Добавить файлы</label>
-        <input type="file" id="file-upload" multiple @change="handleFileUpload" class="todo-input todo-file-upload" />
+        <q-select
+            v-model="selectReligion"
+            :options="filteredReligions"
+            label="Выберите религию"
+            option-label="name"
+            option-value="id"
+            use-input
+            input-debounce="300"
+            @filter="filterReligions"
+            outlined
+            rounded
+            class="q-mb-md"
+        >
+          <template v-slot:append>
+            <!-- Кнопка для очистки выбранного значения -->
+            <q-icon
+                v-if="selectReligion != null"
+                class="cursor-pointer custom-clear-icon"
+                name="clear"
+                @click.stop.prevent="clearSelection"
+            />
+          </template>
+        </q-select>
 
-        <!-- Предпросмотр изображений -->
-        <div v-if="imagePreviews.length > 0" class="image-previews">
+        <q-input v-model="coordinates" label="Добавьте координаты" required :minlength="5" :maxlength="50" outlined rounded class="q-mb-md" />
+
+        <q-btn style="width: 100%; height: 56px;" unelevated rounded  label="Добавить файлы" @click="triggerFileInput" class="todo-file-upload q-mb-md animated-button" />
+
+        <input type="file" id="file-upload" multiple ref="fileInput" @change="handleFileUpload" style="display: none" />
+
+        <div v-if="imagePreviews.length" class="image-previews">
           <div v-for="(preview, index) in imagePreviews" :key="index" class="image-preview">
             <img :src="preview" alt="Предпросмотр изображения" class="preview-image" @click="openImage(preview)" />
             <button @click="removeImage(index)" class="remove-image-btn">X</button>
           </div>
         </div>
 
-        <button class="todo-button">Добавить</button>
+        <!-- Кнопка отправки формы -->
       </div>
     </form>
 
-    <!-- Модальное окно для просмотра фото -->
     <div v-if="isModalOpen" class="modal" @click.self="closeModal">
       <img :src="modalImage" class="modal-image" />
     </div>
+    <form @submit.prevent="addTodo" class="todo-form" enctype="multipart/form-data">
+      <!-- Остальные поля формы -->
+
+      <q-btn label="Добавить задачу" type="submit" unelevated rounded class="q-mb-md animated-button" style="width: 100%; height: 56px;" />
+    </form>
   </div>
 </template>
 
-
 <script setup>
-import axios from 'axios';
-import { ref } from 'vue';
-import { useRouter } from 'vue-router';
+import axios from "axios";
+import { ref, onMounted } from "vue";
+import { useRouter } from "vue-router";
+import { QInput, QBtn, QSelect, QIcon } from 'quasar'; // Импорт компонентов Quasar
 
-const title = ref('');
-const country = ref('');
-const architect = ref('');
-const city = ref('');
-const built = ref('');
-const religion = ref('');
-const coordinates = ref('');
+// Ссылки на данные формы
+const title = ref("");
+const country = ref("");
+const architect = ref("");
+const city = ref("");
+const built = ref("");
+const coordinates = ref("");
 const files = ref([]); // Список файлов
 const imagePreviews = ref([]); // Массив для хранения URL предпросмотра изображений
 const isModalOpen = ref(false); // Статус модального окна
-const modalImage = ref(''); // URL для отображаемого изображения в модальном окне
+const modalImage = ref(""); // URL для отображаемого изображения в модальном окне
 const router = useRouter();
+const selectReligion = ref(null); // Модель для выбранной религии
+const religions = ref([]); // Данные о религиях из базы данных
+const filteredReligions = ref([]); // Отфильтрованные религии
 
+// Загружаем религии при монтировании компонента
+onMounted(async () => {
+  try {
+    const response = await axios.get("http://127.0.0.1:5000/api/religions");
+    religions.value = response.data;  // Получаем религии из базы данных
+    filteredReligions.value = religions.value; // Инициализируем список религий
+  } catch (error) {
+    console.error("Ошибка при загрузке религий:", error);
+  }
+});
+
+// Функция для фильтрации религий
+const filterReligions = (val, update) => {
+  update(() => {
+    if (val) {
+      // Если есть введенный текст, фильтруем
+      const lowerVal = val.toLowerCase();
+      filteredReligions.value = religions.value.filter((religion) =>
+          religion.name.toLowerCase().includes(lowerVal)
+      );
+    } else {
+      // Если текста нет, показываем все религии
+      filteredReligions.value = religions.value;
+    }
+  });
+};
+
+// Функция для очистки выбранной религии
+const clearSelection = () => {
+  selectReligion.value = null;
+};
+
+// Работа с изображениями
 function handleFileUpload(event) {
   const selectedFiles = event.target.files;
   files.value = Array.from(selectedFiles); // Преобразуем в массив
-
-  // Создание URL для предпросмотра изображений
-  imagePreviews.value = Array.from(selectedFiles).map(file => URL.createObjectURL(file));
+  imagePreviews.value = Array.from(selectedFiles).map((file) =>
+      URL.createObjectURL(file)
+  );
 }
 
 function removeImage(index) {
-  // Удаление изображения из массива предпросмотра
   imagePreviews.value.splice(index, 1);
-
-  // Удаление файла из списка файлов
-  files.value.splice(index, 1); // Мы удаляем файл по индексу
+  files.value.splice(index, 1);
 }
 
 function openImage(imageSrc) {
@@ -78,38 +139,45 @@ function openImage(imageSrc) {
 
 function closeModal() {
   isModalOpen.value = false;
-  modalImage.value = '';
+  modalImage.value = "";
 }
 
+// Отправка формы
 async function addTodo() {
   try {
     const formData = new FormData();
-    formData.append('text', title.value);
-    formData.append('country', country.value);
-    formData.append('city', city.value);
-    formData.append('built', built.value);
-    formData.append('coordinates', coordinates.value);
-    formData.append('architect', architect.value);
-    formData.append('relig', religion.value);
+    formData.append("text", title.value);
+    formData.append("country", country.value);
+    formData.append("city", city.value);
+    formData.append("built", built.value);
+    formData.append("coordinates", coordinates.value);
+    formData.append("architect", architect.value);
+    formData.append("religion_id", selectReligion.value ? selectReligion.value.id : null); // Отправляем только ID
 
-    // Добавляем файлы в formData
-    Array.from(files.value).forEach(file => {
-      formData.append('photos', file);
+    // Добавление всех файлов
+    Array.from(files.value).forEach((file) => {
+      formData.append("photos", file);
     });
 
-    await axios.post('http://127.0.0.1:5000/api/todos', formData, {
+    const response = await axios.post("http://127.0.0.1:5000/api/todos", formData, {
       headers: {
-        'Content-Type': 'multipart/form-data',
+        "Content-Type": "multipart/form-data",
       },
     });
-    router.push('/'); // Перенаправление после добавления
+
+    console.log(response.data);
+    router.push("/");  // Перенаправление на главную страницу
   } catch (error) {
-    console.error('Ошибка при добавлении задачи:', error);
+    console.error("Ошибка при добавлении задачи:", error);
   }
 }
+
+// Функция для вызова выбора файлов
+function triggerFileInput() {
+  const fileInput = document.getElementById("file-upload");
+  fileInput.click();
+}
 </script>
-
-
 
 <style scoped>
 /* Общие стили для формы добавления задачи */
@@ -139,89 +207,28 @@ async function addTodo() {
   box-sizing: border-box; /* Чтобы поля ввода не выходили за пределы */
 }
 
-.todo-input {
-  width: 100%;
-  padding: 10px;
-  margin: 5px 0;
-  border: 1px solid #b2dfdb;
-  border-radius: 5px;
-  background-color: #f0f8ff;
-  font-size: 14px;
-  color: #00796b;
-  box-sizing: border-box; /* Чтобы поля не выходили за пределы */
-}
-
-.todo-input:focus {
-  border-color: #00796b;
-  background-color: #e0f7fa;
-}
-
-.todo-button {
-  padding: 10px 20px;
-  background-color: #4caf50;
-  color: white;
-  border: 1px solid #b2dfdb;
-  border-radius: 5px;
-  font-size: 14px;
-  cursor: pointer;
-  margin-top: 10px;
-  width: 100%; /* Кнопка будет растягиваться на всю ширину родительского контейнера */
-  box-sizing: border-box; /* Учитывает padding и border в расчете ширины */
-}
-
-.todo-button:hover {
-  background-color: #388e3c;
-}
-
-/* Стили для кнопки загрузки файлов */
-.todo-file-upload {
-  display: none; /* Скрыть стандартное поле ввода файлов */
-}
-
-.todo-file-upload-label {
-  display: inline-block;
-  padding: 10px 20px;
-  background-color: #2196f3;
-  color: white;
-  border-radius: 5px;
-  cursor: pointer;
-  font-size: 13px;
-  margin-top: 5.5px;
-  width: 100%;
-  text-align: center;
-  box-sizing: border-box;
-}
-
-.todo-file-upload-label:hover {
-  background-color: #1976d2;
-}
-
 /* Стили для предпросмотра изображений */
 .image-previews {
   display: flex;
   gap: 10px;
-  margin-top: 15px;
+  margin-top: 20px;
 }
 
 .image-preview {
   position: relative;
-  width: 100px;
-  height: 100px;
-  overflow: hidden;
-  border-radius: 5px;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
 }
 
 .preview-image {
-  width: 100%;
-  height: 100%;
+  max-width: 100px;
+  height: 100px;
   object-fit: cover;
+  border-radius: 5px;
 }
 
 .remove-image-btn {
   position: absolute;
-  top: 5px;
-  right: 5px;
+  top: -5px;
+  right: -5px;
   background: rgba(255, 0, 0, 0.7);
   color: white;
   border: none;
@@ -229,23 +236,19 @@ async function addTodo() {
   width: 20px;
   height: 20px;
   cursor: pointer;
-  font-size: 12px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
 }
 
 .remove-image-btn:hover {
-  background: red;
+  background: rgba(255, 0, 0, 1);
 }
 
-/* Стили для модального окна */
+/* Модальное окно */
 .modal {
   position: fixed;
   top: 0;
   left: 0;
-  right: 0;
-  bottom: 0;
+  width: 100%;
+  height: 100%;
   background-color: rgba(0, 0, 0, 0.7);
   display: flex;
   justify-content: center;
@@ -255,7 +258,41 @@ async function addTodo() {
 
 .modal-image {
   max-width: 90%;
-  max-height: 90%;
-  border-radius: 10px;
+  max-height: 80%;
+  object-fit: contain;
+}
+
+.custom-clear-icon {
+  margin-left: 8px; /* Отступ от текста */
+  vertical-align: middle; /* Вертикальное выравнивание по центру текста */
+}
+.animated-button {
+  background-color: #72a2ac; /* Начальный цвет */
+  color: white;
+  transition: background-color 0.5s ease-in-out;
+}
+
+/* При наведении кнопка будет плавно менять цвета */
+.animated-button:hover {
+  animation: colorCycle 6s infinite; /* Плавная анимация перехода через цвета */
+}
+
+/* Анимация для плавного изменения цвета фона */
+@keyframes colorCycle {
+  0% {
+    background-color: #72a2ac; /* #dae4e5 */
+  }
+  25% {
+    background-color: #94c0c2; /* #94c0c2 */
+  }
+  50% {
+    background-color: #69a4a2; /* #69a4a2 */
+  }
+  75% {
+    background-color: #296e6b; /* #296e6b */
+  }
+  100% {
+    background-color: #2b4a4a; /* #2b4a4a */
+  }
 }
 </style>

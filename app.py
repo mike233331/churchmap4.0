@@ -11,6 +11,16 @@ app.config['UPLOAD_FOLDER'] = os.path.join(os.path.dirname(__file__), 'uploads')
 db = SQLAlchemy(app)
 CORS(app)  # Разрешение CORS для всех маршрутов
 
+# Модель для таблицы религий
+class Religion(db.Model):
+    id = db.Column(db.Integer, primary_key=True)  # Уникальный идентификатор религии
+    name = db.Column(db.String(100), nullable=False)  # Название религии
+    description = db.Column(db.Text)  # Описание религии (необязательно)
+
+    def __repr__(self):
+        return f'<Religion {self.name}>'
+
+# Модель для таблицы задач (Todo)
 class Todo(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     text = db.Column(db.String(100), nullable=False)
@@ -19,15 +29,37 @@ class Todo(db.Model):
     built = db.Column(db.String(4), nullable=False)
     coordinates = db.Column(db.String(50), nullable=False)
     architect = db.Column(db.String(50), nullable=False)
-    relig = db.Column(db.String(50), nullable=False)
+    religion_id = db.Column(db.Integer, db.ForeignKey('religion.id'), nullable=False)  # Внешний ключ
     photos = db.Column(db.Text)  # Поле для хранения путей к фото (разделённых запятыми)
+
+    religion = db.relationship('Religion', backref=db.backref('todos', lazy=True))  # Связь с таблицей Religion
 
 with app.app_context():
     db.create_all()
 
+    # Добавление нескольких религий, если таблица пуста
+    if Religion.query.count() == 0:
+        religion1 = Religion(name='Христианство', description='Религия, основанная на жизни и учении Иисуса Христа.')
+        religion2 = Religion(name='Ислам', description='Религия, основанная на учении пророка Мухаммеда.')
+        db.session.add(religion1)
+        db.session.add(religion2)
+        db.session.commit()
+
 # Функция для проверки допустимых типов файлов
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in {'png', 'jpg', 'jpeg', 'gif'}
+
+# Маршрут для получения списка всех религий
+@app.route('/api/religions', methods=['GET'])
+def get_religions():
+    religions = Religion.query.all()
+    return jsonify([
+        {
+            'id': religion.id,
+            'name': religion.name,
+            'description': religion.description
+        } for religion in religions
+    ])
 
 # Маршрут для получения списка всех задач
 @app.route('/api/todos', methods=['GET'])
@@ -42,16 +74,19 @@ def get_todos():
             'built': todo.built,
             'coordinates': todo.coordinates,
             'architect': todo.architect,
-            'relig': todo.relig
+            'religion': todo.religion_id  # Ссылаемся на имя религии
         } for todo in todos
     ])
 
-# Маршрут для получения задачи по ID
+
 @app.route('/todo/<int:id>', methods=['GET'])
 def get_todo_by_id(id):
     todo = Todo.query.get(id)
     if not todo:
         return jsonify({'message': 'Task not found'}), 404
+
+    # Получаем религию, если она существует
+    religion_name = todo.religion.name if todo.religion else None
 
     photos = [
         {'filename': os.path.basename(photo), 'filepath': f'/uploads/{os.path.basename(photo)}'}
@@ -66,9 +101,10 @@ def get_todo_by_id(id):
         'built': todo.built,
         'coordinates': todo.coordinates,
         'architect': todo.architect,
-        'relig': todo.relig,
+        'religion_name': religion_name,  # Ссылаемся на имя религии
         'photos': photos
     })
+
 
 # Маршрут для добавления новой задачи
 @app.route('/api/todos', methods=['POST'])
@@ -85,6 +121,9 @@ def add_todo():
                 file.save(filepath)
                 photo_filenames.append(filename)  # Сохраняем имя файла
 
+    # Получаем ID религии из формы
+    religion_id = data.get('religion_id')
+
     new_todo = Todo(
         text=data.get('text'),
         country=data.get('country'),
@@ -92,14 +131,13 @@ def add_todo():
         built=data.get('built'),
         coordinates=data.get('coordinates'),
         architect=data.get('architect'),
-        relig=data.get('relig'),
+        religion_id=religion_id,  # Сохраняем ID религии
         photos=','.join(photo_filenames)  # Сохраняем имена файлов через запятую
     )
     db.session.add(new_todo)
     db.session.commit()
 
     return jsonify({'message': 'Task added successfully', 'id': new_todo.id}), 201
-
 
 
 # Маршрут для обновления задачи
@@ -122,7 +160,7 @@ def update_todo(id):
     todo.built = data.get('built', todo.built)
     todo.coordinates = data.get('coordinates', todo.coordinates)
     todo.architect = data.get('architect', todo.architect)
-    todo.relig = data.get('relig', todo.relig)
+    todo.religion_id = data.get('religion_id', todo.religion_id)  # Обновляем религию
 
     # Обрабатываем фотографии, если они есть
     photo_filenames = []  # Список для новых фотографий
@@ -144,8 +182,6 @@ def update_todo(id):
 
     return jsonify({'message': 'Task updated successfully'})
 
-
-
 # Маршрут для удаления задачи
 @app.route('/api/todos/<int:id>', methods=['DELETE'])
 def delete_todo(id):
@@ -157,7 +193,7 @@ def delete_todo(id):
     db.session.commit()
     return jsonify({'message': 'Task deleted successfully'})
 
-
+# Маршрут для удаления фотографии
 @app.route('/api/todos/<int:id>/photos/<filename>', methods=['DELETE'])
 def delete_photo(id, filename):
     todo = Todo.query.get(id)
@@ -190,8 +226,6 @@ def delete_photo(id, filename):
         return jsonify({'message': 'Photo deleted successfully'}), 200
     else:
         return jsonify({'message': 'Photo not found in task'}), 404
-
-
 
 # Маршрут для загрузки файлов
 @app.route('/uploads/<filename>')

@@ -84,7 +84,6 @@ fetchTodos()
 
 .todo-list {
   background-color: white;
-  opacity: 0.85; /* 80% непрозрачности */
   border-radius: 10px;
   list-style-type: none;
   padding: 0;

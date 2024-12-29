@@ -4,13 +4,13 @@ import AddChurch from "@/components/AddChurch.vue";
 import EditTodo from './components/EditTodo.vue'
 
 
-const routes = [
+ const routes = [
     {
         path: '/changes/:id',  // Параметр :id для задания ID задачи
-        name: 'EditTodo',
+         name: 'EditTodo',
         component: EditTodo
     },
-    {
+     {
         path: '/todo/:id',
         name: 'TodoView',
         component: TodoView,

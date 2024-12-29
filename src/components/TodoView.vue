@@ -1,6 +1,5 @@
 <template>
   <div>
-    <!-- Кнопка для возвращения на главную страницу -->
     <router-link to="/" class="back-button">
       <button>Назад</button>
     </router-link>
@@ -13,113 +12,117 @@
         <p><strong>Built Year:</strong> {{ todo.built }}</p>
         <p><strong>Coordinates:</strong> {{ todo.coordinates }}</p>
         <p><strong>Architect:</strong> {{ todo.architect }}</p>
-        <p><strong>Religion:</strong> {{ todo.relig }}</p>
+        <p><strong>Religion:</strong> {{ todo.religion_name }}</p>
       </div>
 
-      <!-- Отображение фотографий -->
-      <div class="todo-photos" v-if="todo.photos && todo.photos.length">
-        <h3>Фотографии</h3>
-        <div class="photos-gallery">
-          <img
-              v-for="photo in todo.photos"
+      <div v-if="todo.photos?.length" class="todo-photos">
+        <q-carousel v-model="slide" swipeable animated thumbnails infinite>
+          <q-carousel-slide
+              v-for="(photo, index) in todo.photos"
               :key="photo.filename"
-              :src="'http://127.0.0.1:5000/' + photo.filepath"
-              :alt="photo.filename"
-              class="todo-photo"
-              @click="openModal('http://127.0.0.1:5000/' + photo.filepath)" />
-        </div>
+              :name="index + 1"
+              :img-src="`http://127.0.0.1:5000/uploads/${photo.filename}`"
+              @click="openModal(`http://127.0.0.1:5000/uploads/${photo.filename}`)"
+          />
+        </q-carousel>
       </div>
     </div>
 
-    <div v-else class="todo-not-found">
-      <p>Todo not found.</p>
+    <div v-if="isModalOpen" class="modal" @click="closeModal">
+      <div class="modal-content" @click.stop>
+        <img :src="modalImage" alt="Фото" class="modal-image" />
+      </div>
     </div>
 
-    <!-- Модальное окно для отображения изображения в полном размере -->
-    <div v-if="isModalOpen" class="modal" @click.self="closeModal">
-      <img :src="modalImage" class="modal-image" />
-    </div>
+
   </div>
 </template>
 
 
+
 <script>
+import { defineComponent, ref } from "vue";
+import { QCarousel, QCarouselSlide } from "quasar";
 import axios from "axios";
 
-export default {
+export default defineComponent({
+  name: "TodoView",
+  components: { QCarousel, QCarouselSlide },
   data() {
     return {
-      todo: null, // Сюда будут загружены данные todo
-      isModalOpen: false, // Статус модального окна
-      modalImage: "", // URL для отображаемого изображения в модальном окне
+      todo: null,
+      slide: ref(1),
+      isModalOpen: false,
+      modalImage: "",
     };
   },
   created() {
-    const id = this.$route.params.id; // Получаем ID из маршрута
     axios
-        .get(`http://127.0.0.1:5000/todo/${id}`)
-        .then((response) => {
-          this.todo = response.data; // Сохраняем данные todo
-        })
-        .catch((error) => {
-          console.error("Error fetching todo:", error);
-        });
+        .get(`http://127.0.0.1:5000/todo/${this.$route.params.id}`)
+        .then((response) => (this.todo = response.data))
+        .catch((error) => console.error("Error fetching todo:", error));
   },
   methods: {
     openModal(imageSrc) {
-      this.modalImage = imageSrc; // Устанавливаем URL изображения в модальном окне
-      this.isModalOpen = true; // Открываем модальное окно
+      this.modalImage = imageSrc;
+      this.isModalOpen = true;
     },
     closeModal() {
-      this.isModalOpen = false; // Закрываем модальное окно
-      this.modalImage = ""; // Очищаем URL изображения
-    }
-  }
-};
+      this.isModalOpen = false;
+      this.modalImage = "";
+    },
+  },
+});
 </script>
 
 
+
 <style scoped>
-/* Стили для кнопки "Назад" */
-.back-button {
-  display: block;
-  margin: 20px auto;
-  width: 100%;
-  text-align: center;
-}
+  /* Стили для кнопки "Назад" */
+  .back-button {
+    position: fixed; /* Фиксируем кнопку вне контейнера */
+    top: 20px; /* Расстояние от верхней части экрана */
+    left: 50%; /* Центрируем кнопку по горизонтали */
+    transform: translateX(-50%); /* Корректируем центрирование */
+    z-index: 10; /* Поверх всех элементов */
+    width: 100%; /* Ширина кнопки */
+    text-align: center; /* Выравниваем текст по центру */
+  }
 
-.back-button button {
-  padding: 12px;
-  width: 47%;
-  background-color: #80cbc4; /* Более приглушенный бирюзовый */
-  color: #ffffff;
-  border: none;
-  border-radius: 5px;
-  font-size: 1rem;
-  cursor: pointer;
-  transition: background-color 0.3s ease;
-}
+  .back-button button {
+    padding: 12px;
+    width: 50%; /* Устанавливаем ширину кнопки */
+    background-color: #80cbc4;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: background-color 0.3s;
+  }
 
-.back-button button:hover {
-  background-color: #4db6ac; /* Более темный оттенок при наведении */
-}
+  .back-button button:hover {
+    background-color: #4db6ac; /* Более темный оттенок при наведении */
+  }
 
-/* Добавление бирюзового фона */
 .todo-container {
   font-family: Avenir, Helvetica, Arial, sans-serif;
   color: #2c3e50;
   padding: 20px;
   max-width: 600px;
-  margin: 40px auto;
+  margin: 20px auto; /* Уменьшили отступ сверху */
   background: #e0f7fa; /* Бирюзовый фон */
   border-radius: 8px;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  position: relative; /* Для управления позиционированием */
+  top: 0; /* Убираем любое смещение вниз */
+  transform: translateY(-20px); /* Поднимаем контейнер выше */
 }
 
 .todo-title {
   font-size: 2rem;
   font-weight: bold;
-  color: #00796b; /* Темно-бирюзовый цвет для заголовка */
+  color: #00796b;
   margin-bottom: 20px;
   text-align: center;
 }
@@ -130,7 +133,7 @@ export default {
 }
 
 .todo-details strong {
-  color: #004d40; /* Темный акцент для ключевых слов */
+  color: #004d40;
 }
 
 .todo-not-found {
@@ -140,46 +143,32 @@ export default {
   margin-top: 50px;
 }
 
-/* Стили для блока с фотографиями */
-.todo-photos {
-  margin-top: 30px;
-}
-
-.photos-gallery {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  justify-content: center;
-}
-
-.todo-photo {
-  width: 300px; /* Фиксированная ширина */
-  height: 200px; /* Фиксированная высота */
-  object-fit: contain; /* Изображение будет полностью видно, сжато по необходимости */
-  border-radius: 8px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-  cursor: pointer; /* Курсор меняется на указатель при наведении */
-}
-
-/* Стили для модального окна */
 .modal {
   position: fixed;
   top: 0;
   left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(0, 0, 0, 0.7);
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  overflow: hidden;
+}
+
+.modal-content {
+  max-width: 90%;
+  max-height: 90%;
   display: flex;
   justify-content: center;
   align-items: center;
-  z-index: 1000;
 }
 
 .modal-image {
-  max-width: 90%;
-  max-height: 90%;
-  border-radius: 10px;
-  object-fit: contain; /* Изображение не будет искажаться */
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  border-radius: 8px;
 }
 </style>
-
