@@ -24,6 +24,7 @@ class Religion(db.Model):
 class Todo(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     text = db.Column(db.String(100), nullable=False)
+    description = db.Column(db.String(1000), nullable=False)
     country = db.Column(db.String(50), nullable=False)
     city = db.Column(db.String(50), nullable=False)
     built = db.Column(db.String(4), nullable=False)
@@ -74,6 +75,7 @@ def get_todos():
             'built': todo.built,
             'coordinates': todo.coordinates,
             'architect': todo.architect,
+            'description': todo.description,
             'religion': todo.religion_id  # Ссылаемся на имя религии
         } for todo in todos
     ])
@@ -101,6 +103,7 @@ def get_todo_by_id(id):
         'built': todo.built,
         'coordinates': todo.coordinates,
         'architect': todo.architect,
+        'description': todo.description,
         'religion_name': religion_name,  # Ссылаемся на имя религии
         'photos': photos
     })
@@ -131,6 +134,7 @@ def add_todo():
         built=data.get('built'),
         coordinates=data.get('coordinates'),
         architect=data.get('architect'),
+        description=data.get('description'),
         religion_id=religion_id,  # Сохраняем ID религии
         photos=','.join(photo_filenames)  # Сохраняем имена файлов через запятую
     )
@@ -160,7 +164,10 @@ def update_todo(id):
     todo.built = data.get('built', todo.built)
     todo.coordinates = data.get('coordinates', todo.coordinates)
     todo.architect = data.get('architect', todo.architect)
-    todo.religion_id = data.get('religion_id', todo.religion_id)  # Обновляем религию
+    todo.description = data.get('description', todo.description)
+    religion_id = data.get('religion_id')
+    if religion_id:  # Если religion_id передан
+        todo.religion_id = religion_id  # Обновляем религию на новую
 
     # Обрабатываем фотографии, если они есть
     photo_filenames = []  # Список для новых фотографий
@@ -173,14 +180,18 @@ def update_todo(id):
                 file.save(filepath)
                 photo_filenames.append(filename)  # Добавляем имя файла в список
 
-    # Если есть новые фотографии, обновляем их
+    # Если есть новые фотографии, добавляем их к уже существующим
     if photo_filenames:
-        todo.photos = ",".join(photo_filenames)  # Обновляем поле с фотографиями
+        # Сначала добавляем новые фотографии, затем старые
+        existing_photos = todo.photos.split(',') if todo.photos else []
+        all_photos = existing_photos + photo_filenames  # Объединяем старые и новые фотографии
+        todo.photos = ",".join(all_photos)  # Обновляем поле с фотографиями
 
     # Сохраняем изменения в базе данных
     db.session.commit()
 
     return jsonify({'message': 'Task updated successfully'})
+
 
 # Маршрут для удаления задачи
 @app.route('/api/todos/<int:id>', methods=['DELETE'])

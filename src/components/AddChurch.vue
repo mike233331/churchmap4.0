@@ -4,12 +4,13 @@
     <form @submit.prevent="addTodo" class="todo-form" enctype="multipart/form-data">
       <div class="column-right">
         <q-input v-model="title" label="Добавьте название" required :minlength="3" :maxlength="100" outlined rounded class="q-mb-md" />
+        <q-input v-model="description" label="Добавьте описание" required :minlength="3" :maxlength="1000" outlined rounded autogrow class="q-mb-md" />
         <q-input v-model="country" label="Добавьте страну" required :minlength="3" :maxlength="50" outlined rounded class="q-mb-md" />
-        <q-input v-model="architect" label="Добавьте имя архитектора" required :minlength="3" :maxlength="50" outlined rounded class="q-mb-md" />
         <q-input v-model="city" label="Добавьте город" required :minlength="3" :maxlength="50" outlined rounded class="q-mb-md" />
       </div>
 
       <div class="column-left">
+        <q-input v-model="architect" label="Добавьте имя архитектора" required :minlength="3" :maxlength="50" outlined rounded class="q-mb-md" />
         <q-input v-model="built" label="Добавьте дату строительства" required :minlength="4" :maxlength="4" outlined rounded class="q-mb-md" />
 
         <q-select
@@ -38,7 +39,6 @@
 
         <q-input v-model="coordinates" label="Добавьте координаты" required :minlength="5" :maxlength="50" outlined rounded class="q-mb-md" />
 
-        <q-btn style="width: 100%; height: 56px;" unelevated rounded  label="Добавить файлы" @click="triggerFileInput" class="todo-file-upload q-mb-md animated-button" />
 
         <input type="file" id="file-upload" multiple ref="fileInput" @change="handleFileUpload" style="display: none" />
 
@@ -58,7 +58,7 @@
     </div>
     <form @submit.prevent="addTodo" class="todo-form" enctype="multipart/form-data">
       <!-- Остальные поля формы -->
-
+      <q-btn style="width: 100%; height: 56px;" unelevated rounded  label="Добавить файлы" @click="triggerFileInput" class="todo-file-upload q-mb-md animated-button" />
       <q-btn label="Добавить задачу" type="submit" unelevated rounded class="q-mb-md animated-button" style="width: 100%; height: 56px;" />
     </form>
   </div>
@@ -72,6 +72,7 @@ import { QInput, QBtn, QSelect, QIcon } from 'quasar'; // Импорт комп�
 
 // Ссылки на данные формы
 const title = ref("");
+const description = ref("");
 const country = ref("");
 const architect = ref("");
 const city = ref("");
@@ -147,6 +148,7 @@ async function addTodo() {
   try {
     const formData = new FormData();
     formData.append("text", title.value);
+    formData.append("description", description.value);
     formData.append("country", country.value);
     formData.append("city", city.value);
     formData.append("built", built.value);
@@ -208,11 +210,19 @@ function triggerFileInput() {
 }
 
 /* Стили для предпросмотра изображений */
+.container {
+  display: flex;
+  justify-content: center; /* Центрирование по горизонтали */
+  align-items: center;     /* Центрирование по вертикали */
+  height: 100vh;           /* Высота контейнера на весь экран */
+}
+
 .image-previews {
   display: flex;
   gap: 10px;
-  margin-top: 20px;
 }
+
+
 
 .image-preview {
   position: relative;

@@ -7,14 +7,16 @@
     <div class="todo-container" v-if="todo">
       <h1 class="todo-title">{{ todo.text }}</h1>
       <div class="todo-details">
-        <p><strong>Country:</strong> {{ todo.country }}</p>
-        <p><strong>City:</strong> {{ todo.city }}</p>
-        <p><strong>Built Year:</strong> {{ todo.built }}</p>
-        <p><strong>Coordinates:</strong> {{ todo.coordinates }}</p>
-        <p><strong>Architect:</strong> {{ todo.architect }}</p>
-        <p><strong>Religion:</strong> {{ todo.religion_name }}</p>
+        <p>
+          <strong>Description:</strong> <span>{{ truncatedDescription }}<span v-if="isDescriptionTruncated" class="read-more" @click="showFullDescription" style="font-size: 0.8rem; color: #1a6daf;"> ... (read more)</span></span>
+        </p>
+        <p><strong>Country:</strong> <span>{{ todo.country }}</span></p>
+        <p><strong>City:</strong> <span>{{ todo.city }}</span></p>
+        <p><strong>Built Year:</strong> <span>{{ todo.built }}</span></p>
+        <p><strong>Coordinates:</strong> <span>{{ todo.coordinates }}</span></p>
+        <p><strong>Architect:</strong> <span>{{ todo.architect }}</span></p>
+        <p><strong>Religion:</strong> <span>{{ todo.religion_name }}</span></p>
       </div>
-
       <div v-if="todo.photos?.length" class="todo-photos">
         <q-carousel v-model="slide" swipeable animated thumbnails infinite>
           <q-carousel-slide
@@ -34,16 +36,20 @@
       </div>
     </div>
 
-
+    <div v-if="isDescriptionModalOpen" class="modal" @click="closeDescriptionModal">
+      <div class="modal-content" @click.stop>
+        <p>{{ todo.description }}</p>
+      </div>
+    </div>
   </div>
 </template>
-
-
 
 <script>
 import { defineComponent, ref } from "vue";
 import { QCarousel, QCarouselSlide } from "quasar";
 import axios from "axios";
+
+
 
 export default defineComponent({
   name: "TodoView",
@@ -54,7 +60,23 @@ export default defineComponent({
       slide: ref(1),
       isModalOpen: false,
       modalImage: "",
+      isDescriptionModalOpen: false,
+      truncatedDescriptionLength: 20,
     };
+  },
+  computed: {
+    isDescriptionTruncated() {
+      return (
+          this.todo &&
+          this.todo.description &&
+          this.todo.description.length > this.truncatedDescriptionLength
+      );
+    },
+    truncatedDescription() {
+      return this.isDescriptionTruncated
+          ? this.todo.description.slice(0, this.truncatedDescriptionLength)
+          : this.todo.description;
+    },
   },
   created() {
     axios
@@ -71,77 +93,100 @@ export default defineComponent({
       this.isModalOpen = false;
       this.modalImage = "";
     },
+    showFullDescription() {
+      this.isDescriptionModalOpen = true;
+    },
+    closeDescriptionModal() {
+      this.isDescriptionModalOpen = false;
+    },
   },
 });
+
 </script>
 
-
-
 <style scoped>
-  /* Стили для кнопки "Назад" */
-  .back-button {
-    position: fixed; /* Фиксируем кнопку вне контейнера */
-    top: 20px; /* Расстояние от верхней части экрана */
-    left: 50%; /* Центрируем кнопку по горизонтали */
-    transform: translateX(-50%); /* Корректируем центрирование */
-    z-index: 10; /* Поверх всех элементов */
-    width: 100%; /* Ширина кнопки */
-    text-align: center; /* Выравниваем текст по центру */
-  }
+/* Стили для кнопки "Назад" */
+.back-button {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+  width: 100%;
+  text-align: center;
+}
 
-  .back-button button {
-    padding: 12px;
-    width: 50%; /* Устанавливаем ширину кнопки */
-    background-color: #80cbc4;
-    color: white;
-    border: none;
-    border-radius: 5px;
-    font-size: 1rem;
-    cursor: pointer;
-    transition: background-color 0.3s;
-  }
+.back-button button {
+  padding: 12px;
+  width: 50%;
+  background-color: #80cbc4;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
 
-  .back-button button:hover {
-    background-color: #4db6ac; /* Более темный оттенок при наведении */
-  }
+.back-button button:hover {
+  background-color: #4db6ac;
+}
 
 .todo-container {
   font-family: Avenir, Helvetica, Arial, sans-serif;
   color: #2c3e50;
   padding: 20px;
   max-width: 600px;
-  margin: 20px auto; /* Уменьшили отступ сверху */
-  background: #e0f7fa; /* Бирюзовый фон */
+  margin: 20px auto;
+  background: #e0f7fa;
   border-radius: 8px;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-  position: relative; /* Для управления позиционированием */
-  top: 0; /* Убираем любое смещение вниз */
-  transform: translateY(-20px); /* Поднимаем контейнер выше */
+  position: relative;
+  top: 0;
+  transform: translateY(-20px);
 }
 
 .todo-title {
   font-size: 2rem;
   font-weight: bold;
-  color: #00796b;
+  color: #00718F;
   margin-bottom: 20px;
   text-align: center;
 }
 
+.todo-details {
+  display: grid;
+  gap: 5px 15px;
+  align-items: center;
+  justify-items: start;
+}
+
 .todo-details p {
-  font-size: 1.1rem;
-  margin: 10px 0;
+  margin: 2px;
 }
 
 .todo-details strong {
-  color: #004d40;
+  font-size: 1.3rem; /* Можно оставить, чтобы чуть увеличить размер */
+  color: #0BA5BE;
+  font-weight: 900; /* Устанавливаем максимальную жирность */
+  text-align: left;
 }
 
-.todo-not-found {
-  text-align: center;
-  font-size: 1.5rem;
-  color: #e74c3c;
-  margin-top: 50px;
+
+
+.todo-details span {
+  font-size: 1.1rem;
+  color: #2c3e50;
 }
+
+.read-more {
+  font-size: 0.8rem;
+  cursor: pointer;
+  font-weight: bold;
+  text-decoration: underline;
+
+}
+
 
 .modal {
   position: fixed;
@@ -158,12 +203,25 @@ export default defineComponent({
 }
 
 .modal-content {
-  max-width: 90%;
-  max-height: 90%;
+  width: 40%;
+  height: 50%;
+  max-width: 80%;
+  max-height: 50%;
   display: flex;
-  justify-content: center;
-  align-items: center;
+  flex-direction: column;
+  justify-content: flex-start;
+  padding: 20px;
+  background: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+  color: #2c3e50;
+  font-size: 1.2rem;
+  line-height: 1.6;
+  overflow: auto;
+  word-break: break-word;
+  white-space: normal;
 }
+
 
 .modal-image {
   max-width: 100%;

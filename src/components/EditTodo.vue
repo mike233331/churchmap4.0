@@ -1,66 +1,47 @@
 <template>
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
   <div class="todo-edit">
     <div class="form-container">
       <h2>Редактировать задачу</h2>
       <form @submit.prevent="saveEdit" class="edit-form">
-        <!-- Поля формы для редактирования задачи -->
         <div class="input-container">
-          <label for="text">Текст задачи</label>
-          <input v-model="todo.text" placeholder="Текст задачи" class="todo-input-edit" id="text" />
-        </div>
-        <div class="input-container">
-          <label for="country">Страна</label>
-          <input v-model="todo.country" placeholder="Страна" class="todo-input-edit" id="country" />
-        </div>
-        <div class="input-container">
-          <label for="city">Город</label>
-          <input v-model="todo.city" placeholder="Город" class="todo-input-edit" id="city" />
-        </div>
-        <div class="input-container">
-          <label for="built">Год постройки</label>
-          <input v-model="todo.built" placeholder="Год постройки" class="todo-input-edit" id="built" />
-        </div>
-        <div class="input-container">
-          <label for="coordinates">Координаты</label>
-          <input v-model="todo.coordinates" placeholder="Координаты" class="todo-input-edit" id="coordinates" />
-        </div>
-        <div class="input-container">
-          <label for="architect">Архитектор</label>
-          <input v-model="todo.architect" placeholder="Архитектор" class="todo-input-edit" id="architect" />
+          <q-input v-model="todo.text" label="Название" outlined rounded class="q-mb-md todo-input-edit" id="text" />
+          <q-input v-model="todo.description" label="Описание" outlined rounded autogrow class="q-mb-md todo-input-edit" id="description" />
+          <q-input v-model="todo.country" label="Страна" outlined rounded class="q-mb-md todo-input-edit" id="country" />
+          <q-input v-model="todo.city" label="Город" outlined rounded class="q-mb-md todo-input-edit" id="city" />
+          <q-input v-model="todo.built" label="Дата постройки" outlined rounded class="q-mb-md todo-input-edit" id="built" />
+          <q-input v-model="todo.coordinates" label="Координаты" outlined rounded class="q-mb-md todo-input-edit" id="coordinates" />
+          <q-input v-model="todo.architect" label="Архитектор" outlined rounded class="q-mb-md todo-input-edit" id="architect" />
         </div>
 
-        <div class="custom-select" ref="dropdownContainer">
-          <label for="relig">Религия</label>
-          <input
-              type="text"
-              v-model="selectedReligionName"
-              :placeholder="todo.religion_id ? `Religion: ${todo.religion_id}` : 'Поиск религии...'"
-              @click="toggleDropdown"
-              @input="filterReligions"
-              class="todo-input-edit"
-          />
-          <ul v-if="isDropdownOpen" class="dropdown-menu">
-            <li
-                v-for="(religionItem, index) in filteredReligions"
-                :key="index"
-                @click="selectReligion(religionItem)"
-                class="dropdown-item"
-            >
-              {{ religionItem.name }}
-            </li>
-          </ul>
-        </div>
+        <q-select
+            v-model="selectReligion"
+            :options="filteredReligions"
+            :label="selectReligion ? `Вы выбрали: ${selectReligion.name}` : `Текущая религия: ${todo.religion_name}`"
+            option-label="name"
+            option-value="id"
+            use-input
+            input-debounce="300"
+            @filter="filterReligions"
+            outlined
+            rounded
+            class="q-mb-md"
+        >
+          <template v-slot:append>
+            <q-icon
+                v-if="selectReligion != null"
+                class="cursor-pointer custom-clear-icon"
+                name="clear"
+                @click.stop.prevent="clearSelection"
+            />
+          </template>
+        </q-select>
 
-
-
-
-        <!-- Загрузка новых фото -->
         <div class="input-container1">
           <label for="file-upload">Добавить фото</label>
           <input type="file" id="file-upload" multiple @change="handleFileUpload" class="todo-input-file" />
         </div>
 
-        <!-- Предпросмотр новых фото -->
         <div v-if="imagePreviews.length > 0" class="image-previews">
           <div v-for="(preview, index) in imagePreviews" :key="index" class="image-preview">
             <img :src="preview" alt="Предпросмотр изображения" class="preview-image" />
@@ -73,13 +54,12 @@
       <button @click="cancelEdit" class="cancel-button">Отменить</button>
     </div>
 
-    <!-- Контейнер для отображения существующих фотографий -->
     <div class="todo-photos" v-if="todo.photos && todo.photos.length">
       <h3>Фотографии</h3>
       <div class="photos-gallery">
         <div v-for="(photo, index) in todo.photos" :key="photo.filename" class="photo-item">
           <img :src="'http://127.0.0.1:5000/' + photo.filepath" :alt="photo.filename" class="todo-photo" />
-          <button class="delete-photo" @click="deletePhoto(index)">✖</button>
+          <button class="delete-photo" @click="confirmDelete(index)">✖</button>
         </div>
       </div>
     </div>
@@ -87,111 +67,136 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import axios from 'axios';
+import { QInput, QSelect, QIcon } from 'quasar';
 
 const todo = ref({
   text: '',
+  description: '',
   country: '',
   city: '',
   built: '',
   coordinates: '',
   architect: '',
-  religion_id: null,
+  religion_id: '',  // Если религия не выбрана, это будет null
+  religion_name: '', // Название религии (если есть)
   photos: [],
 });
 
-const files = ref([]); // Новые загружаемые файлы
-const imagePreviews = ref([]); // Предпросмотры новых фото
-const deletedPhotos = ref([]); // Массив для хранения удалённых фото
-
+const files = ref([]);
+const imagePreviews = ref([]);
+const deletedPhotos = ref([]);
 const religions = ref([]);
-const searchQuery = ref("");
-const selectedReligionName = ref("");
-const isDropdownOpen = ref(false);
-
 const route = useRoute();
 const router = useRouter();
+const selectReligion = ref(null); // Выбранная религия в списке
+const filteredReligions = ref([]);
 
-// Загружаем данные задачи и религии
+onMounted(async () => {
+  try {
+    const response = await axios.get("http://127.0.0.1:5000/api/religions");
+    religions.value = response.data;
+    filteredReligions.value = religions.value;
+  } catch (error) {
+    console.error("Ошибка при загрузке религий:", error);
+  }
+});
+
 onMounted(async () => {
   const todoId = route.params.id;
   try {
     const response = await axios.get(`http://127.0.0.1:5000/todo/${todoId}`);
     Object.assign(todo.value, response.data);
-
-    // Загружаем религии
     const religionsResponse = await axios.get("http://127.0.0.1:5000/api/religions");
     religions.value = religionsResponse.data;
-
     if (todo.value.religion_id) {
       const religion = religions.value.find(rel => rel.id === todo.value.religion_id);
-      selectedReligionName.value = religion ? religion.name : "";
+      selectReligion.value = religion;
     }
   } catch (error) {
     console.error('Ошибка при загрузке задачи:', error);
   }
 });
 
-// Отфильтрованный список религий
-const filteredReligions = computed(() =>
-    religions.value.filter((rel) =>
-        rel.name.toLowerCase().includes(searchQuery.value.toLowerCase())
-    )
-);
+const filterReligions = (val, update) => {
+  update(() => {
+    if (val) {
+      const lowerVal = val.toLowerCase();
+      filteredReligions.value = religions.value.filter((religion) =>
+          religion.name.toLowerCase().includes(lowerVal)
+      );
+    } else {
+      filteredReligions.value = religions.value;
+    }
+  });
+};
 
-// Управление выпадающим списком религий
-function toggleDropdown() {
-  isDropdownOpen.value = !isDropdownOpen.value;
-}
-
-function filterReligions() {
-  isDropdownOpen.value = true;
-}
-
-// Выбор религии
-function selectReligion(selectedReligion) {
-  todo.value.religion_id = selectedReligion.id;
-  selectedReligionName.value = selectedReligion.name;
-  isDropdownOpen.value = false;
-}
-
-// Обработка загрузки новых фото
 function handleFileUpload(event) {
   const selectedFiles = Array.from(event.target.files);
   files.value.push(...selectedFiles);
   imagePreviews.value.push(...selectedFiles.map(file => URL.createObjectURL(file)));
 }
 
-// Удаление изображения из предпросмотра
 function removePreviewImage(index) {
   imagePreviews.value.splice(index, 1);
-  files.value.splice(index, 1); // Удаляем файл из массива файлов
+  files.value.splice(index, 1);
 }
 
-// Удаление существующего фото
+function confirmDelete(index) {
+  if (confirm('Вы уверены, что хотите удалить это фото?')) {
+    deletePhoto(index);
+  }
+}
+
 function deletePhoto(index) {
   const deletedPhoto = todo.value.photos[index];
   deletedPhotos.value.push(deletedPhoto);
   todo.value.photos.splice(index, 1);
 }
 
-// Сохранение изменений, включая новые фото и удалённые фото
+const clearSelection = () => {
+  selectReligion.value = null;
+};
+
+function validateForm() {
+  if (!todo.value.text || !todo.value.description) {
+    alert('Пожалуйста, заполните все обязательные поля.');
+    return false;
+  }
+  return true;
+}
+
 async function saveEdit() {
-  const todoId = route.params.id;
+  // Проверяем, прошла ли валидация формы
+  if (!validateForm()) return;
+
+  const todoId = route.params.id;  // Получаем ID задачи
   const formData = new FormData();
 
-  // Добавляем текстовые данные
+  // Если религия выбрана, отправляем её, если нет, отправляем старую религию
+  if (selectReligion.value) {
+    formData.append('religion_id', selectReligion.value.id);  // Новая религия
+  } else if (todo.value.religion_id) {
+    formData.append('religion_id', todo.value.religion_id);  // Старая религия (если она есть)
+  }
+
+  // Добавляем остальные данные задачи (кроме фотографий и религии)
   for (const [key, value] of Object.entries(todo.value)) {
-    if (key !== 'photos') {
-      formData.append(key, value);
+    if (key !== 'photos' && key !== 'religion_name') {
+      formData.append(key, value);  // Заполняем все поля, кроме религии
     }
   }
 
-  // Добавляем новые фото
-  files.value.forEach(file => {
+  // Добавляем фотографии, если они есть
+  files.value.forEach((file) => {
     formData.append('photos', file);
+  });
+
+  // Добавляем уже существующие фотографии, если они есть
+  todo.value.photos.forEach((photo) => {
+    formData.append('existing_photos', photo.filename);
   });
 
   try {
@@ -199,39 +204,37 @@ async function saveEdit() {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
 
+    // Если задача была обновлена, перенаправляем на главную страницу
     if (response.data.message === 'Task updated successfully') {
-      // Отправляем информацию о удалённых фотографиях
       await deletePhotosFromDatabase(todoId);
-      router.push('/'); // Перенаправление после сохранения
+      router.push('/');
     } else {
+      alert('Произошла ошибка при сохранении задачи. Попробуйте снова.');
       console.error('Ошибка при сохранении задачи:', response.data);
     }
   } catch (error) {
+    alert('Произошла ошибка при сохранении задачи. Попробуйте снова.');
     console.error('Ошибка при сохранении задачи:', error);
   }
 }
 
 
-// Отправка данных о удалённых фото на сервер
+
 async function deletePhotosFromDatabase(todoId) {
   try {
     for (const deletedPhoto of deletedPhotos.value) {
       await axios.delete(`http://127.0.0.1:5000/api/todos/${todoId}/photos/${deletedPhoto.filename}`);
     }
-    deletedPhotos.value = []; // Очищаем массив удалённых фотографий
+    deletedPhotos.value = [];
   } catch (error) {
     console.error('Ошибка при удалении фотографий с сервера:', error);
   }
 }
 
-// Отмена редактирования
 function cancelEdit() {
-  router.push('/'); // Перенаправление на главную страницу
+  router.push('/');
 }
 </script>
-
-
-
 
 
 <style scoped>
@@ -248,19 +251,7 @@ label {
   color: #555;
 }
 
-.todo-input-edit, .custom-select select {
-  padding: 15px;
-  border: 1px solid #ddd;
-  border-radius: 20px;
-  font-size: 16px;
-  outline: none;
-  width: 100%; /* Для выравнивания */
-  transition: border-color 0.3s;
-}
 
-.todo-input-edit:focus, .custom-select select:focus {
-  border-color: #4caf50;
-}
 
 .custom-select {
   position: relative;
@@ -478,18 +469,12 @@ label {
   color: #555;
 }
 
+
+
 .todo-input-edit {
-  padding: 15px;
-  border: 1px solid #ddd;
-  border-radius: 20px;
-  font-size: 16px;
-  outline: none;
-  transition: border-color 0.3s;
+  margin-bottom: 15px; /* Здесь вы можете настроить размер отступа */
 }
 
-.todo-input-edit:focus {
-  border-color: #4caf50;
-}
 
 .custom-select {
   position: relative;
